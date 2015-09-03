@@ -101,8 +101,8 @@ var Game = function () {
       breath.silence();
       audio.play('game', E, 100);
       win.empty();
-      if (level.current < level.lvls.length - 1) {
-      //if (level.current < 1) {
+      //if (level.current < level.lvls.length - 1) {
+      if (level.current < 1) {
         win.text([
           '<h1>Level '+ (level.current + 1)+'</h1>',
           '<h2>You did it!</h2>',
@@ -1397,8 +1397,8 @@ var Game = function () {
         score.el.textContent = score.val;
       }
       breath.el.textContent = shoal.length + '/' + level.lvls[level.current].score;
-      if (shoal.length >= level.lvls[level.current].score) {
-      //if (shoal.length >= 1) {
+      //if (shoal.length >= level.lvls[level.current].score) {
+      if (shoal.length >= 1) {
         game.win();
       }
     }

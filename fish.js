@@ -70,6 +70,7 @@ var Game = function () {
       reversed = false;
       delClass(ui, 'dead');
       delClass(ui, 'breath');
+      game.bright = 0;
       breath.reset();
       thefish = null;
       each(timeouts, function (t) {
@@ -94,13 +95,21 @@ var Game = function () {
       over.show();
     },
     win: function () {
-      status = 'paused';
+      status = 'win';
       score.stop();
       score.el.textContent = '';
       breath.el.textContent = '';
       breath.silence();
       audio.play('game', E, 100);
       win.empty();
+      thefish.sx = false; thefish.sy = false;
+      each(fishes, function () {
+        this.move(thefish.x, thefish.y);
+      });
+      each(enemies, function () {
+        this.rotate = 0;
+        this.sx = false; this.sy = false;
+      });
       if (level.current < level.lvls.length - 1) {
       //if (level.current < 1) {
         win.text([
@@ -146,7 +155,7 @@ var Game = function () {
         } else {
           localStorage.setItem('kfish name', name);
         }
-        game.updatehighscores(name, score.total, score.totaltime);
+        score.highscore(name, score.total, score.totaltime);
         win.up();
         highscores.show();
         game.reset();
@@ -167,38 +176,6 @@ var Game = function () {
     },
     noScroll: function(event) {
       event.preventDefault();
-    },
-    load: function () {
-      if (window.localStorage) {
-        var loaded = localStorage.getItem('kfish highscores');
-        if (loaded) {
-          highscores.data = JSON.parse(loaded);
-        }
-      }
-    },
-    save: function () {
-      if (window.localStorage) {
-        localStorage.setItem('kfish highscores', JSON.stringify(highscores.data));
-      }
-    },
-    updatehighscores: function (name, points, time) {
-      highscores.data.push({name: name, points: points, time: time});
-      highscores.data.sort(function (a, b) {
-        return b.points - a.points;
-      });
-      highscores.data = highscores.data.slice(0,7);
-      game.save();
-      highscores.empty();
-      var t = [];
-      each(highscores.data, function (data) {
-        t.push('<p>'+data.name+' ... '+data.points+' / '+data.time.toFixed(2)+' sec</p>');
-      });
-      t.reverse();
-      highscores.text(t);
-      highscores.button('Back', function () {
-        menu.show();
-        highscores.up();
-      });
     }
   };
 
@@ -275,8 +252,8 @@ var Game = function () {
         {name: 'Player1', points: 1, time: 10},
         {name: 'Player1', points: 0, time: 10}
       ];
-      game.load();
-      game.updatehighscores();
+      score.load();
+      score.build();
     },
     tuto: function () {
       var tutoText = [
@@ -357,10 +334,11 @@ var Game = function () {
     },
     audio: function () {
       if (window.AudioContext) {
+        audio.load();
         game.audio = true;
         audio.el = document.createElement('a');
         addClass(audio.el, 'mute');
-        audio.el.textContent = 'Mute';
+        audio.el.textContent = audio.mute ? audio.playStr : audio.muteStr;
         audio.el.addEventListener('click', audio.mute);
         resizefont.push(audio);
         ui.appendChild(audio.el);
@@ -498,13 +476,18 @@ var Game = function () {
     this.move(thefish.x + ran(0, 4, true),
               thefish.y + ran(0, 4, true));
     this.rotate = ran(0.01, 0.04, true);
-    score.update(1);
+    score.update(2);
+    if (!game.bright) {
+      game.bright = 1;
+      delay(0.3, function () {
+        game.bright = 0;
+      });
+    }
   };
 
   var Power = function (o) {
     Unit.call(this, o);
     this.type = 'power';
-    this.power = o.power;
     var dx = this.dx - this.x,
         dy = this.dy - this.y,
         a = Math.atan2(this.dy, this.dx);
@@ -513,7 +496,7 @@ var Game = function () {
     this.pdx = o.dx; this.pdy = o.dy;
     powers.push(this);
   };
-  Power.prototype.powerup = function () {
+  Power.prototype.power = function () {
     breath.val += 2;
     if (breath.val > 5) {
       breath.val = 5;
@@ -523,7 +506,9 @@ var Game = function () {
     }
     breath.speed *= 0.7;
     thefish.s = breath.val/breath.speed;
+    game.bright = 1;
     delay(6, function () {
+      game.bright = 0;
       breath.speed /= 0.7;
       thefish.s = breath.val/breath.speed;
     });
@@ -569,10 +554,25 @@ var Game = function () {
     remove(reverses, this);
     remove(units, this);
     score.update(-1);
+    breath.val -= 1;
+    if (breath.val < 0) {
+      breath.val = 0;
+    }
+
+    breath.color = '#f97';
+    delay(0.3, function () {
+      breath.color = 'white';
+    });
+    if (!game.alert) {
+      game.alert = 1;
+      delay(0.3, function () {
+        game.alert = 0;
+      });
+    }
   };
 
   var click = function (e) {
-    if (status == 'play') {
+    if (status === 'play') {
       var now = new Date(),
           doubleClick = (now - lastClick < 300),
           x = (e.layerX || (e.clientX - ui.offsetLeft)) / rw,
@@ -590,7 +590,7 @@ var Game = function () {
                         y + ran(1, 8, true));
         }
       }
-      if (!doubleClick && breath.val >= 1) {
+      if (!doubleClick && breath.val >= 2) {
         breath.val -= 1;
       }
       if (!doubleClick && breath.val >= 3) {
@@ -616,6 +616,7 @@ var Game = function () {
     };
     var t = setTimeout(f.bind(t), time * 1000);
     timeouts.push(t);
+    return t;
   };
 
   var ran = function (min, max, sign) {
@@ -641,7 +642,11 @@ var Game = function () {
 
   var addClass = function (el, classAdd) {
     if (el.className.search(classAdd) == -1) {
-      el.className += ' ' + classAdd;
+      if (el.className.length === 0) {
+        el.className = classAdd;
+      } else {
+        el.className += ' ' + classAdd;
+      }
     }
   };
 
@@ -742,16 +747,16 @@ var Game = function () {
           unit = null;
         }
       });
-      if (status === 'play' && reverses.length < 6) {
+      if (status === 'play' && reverses.length < 12) {
         var unit = new Reverse({
           x: ran(10, width-10), y: -10,
           w: 2.2, h: 2.2,
-          s: ran(0.1, 0.2)
+          s: ran(0.01, 0.5)
         });
         unit.stroke = 'white';
       }
       if (status === 'play') {
-        delay(2, spawn.reverse);
+        delay(1.5, spawn.reverse);
       }
     }
   };
@@ -807,7 +812,7 @@ var Game = function () {
         if (collision.circ(thefish, unit)) { game.over(); }
       });
       each(powers, function colisionPowers (unit) {
-        if (collision.rect(thefish, unit)) { unit.powerup(); }
+        if (collision.rect(thefish, unit)) { unit.power(); }
       });
       each(reverses, function colisionReverses (unit) {
         if (collision.rect(thefish, unit)) { unit.reverse(); }
@@ -850,8 +855,10 @@ var Game = function () {
       ctx.clearRect(0,0,width * rw, height * rh);
       if (status == 'over') {
         ctx.fillStyle = 'rgba(255,255,255,0.1)';
-      } else if (audio.playing) {
+      } else if (game.alert) {
         ctx.fillStyle = 'rgba(240,150,220,0.2)';
+      } else if (game.bright) {
+         ctx.fillStyle = 'rgba(180,250,255,0.2)';
       } else {
         ctx.fillStyle = 'rgba(50,240,255,0.2)';
       }
@@ -859,7 +866,7 @@ var Game = function () {
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       draw.bubbles();
       draw.splash();
-      if (status === 'play') {
+      if (status === 'play' || status === 'win') {
         physic();
         crowd();
         collision.check();
@@ -990,7 +997,7 @@ var Game = function () {
         );
         ctx.lineCap = 'round';
         ctx.lineWidth = 2 * rw;
-        ctx.strokeStyle = 'white';
+        ctx.strokeStyle = breath.color;
         ctx.stroke();
         for (i = 0; i < breath.max; i++) {
           ctx.beginPath();
@@ -1014,7 +1021,7 @@ var Game = function () {
           breath.w/4 * rw,
           0, Math.PI*2
         );
-        ctx.fillStyle = 'white';
+        ctx.fillStyle = breath.color;
         ctx.fill();
       }
     }
@@ -1023,8 +1030,8 @@ var Game = function () {
   var enemy = {
     smallstar: [
       {x: 50, y: 50, w: 20},
-      {x: 50, y:  0, w: 10},
-      {x: 50, y: 13, w: 14},
+      {x: 50, y: -3, w: 10},
+      {x: 50, y: 12, w: 14},
       {x: 50, y: 30, w: 18},
       {x: 0,  y: 36, w: 10},
       {x: 14, y: 40, w: 14},
@@ -1138,44 +1145,60 @@ var Game = function () {
       {//0
         score: 3,
         enemies: [{
-          s: 0.1,
           f: 0.2,
           x:  30, y:  10,
-          dx: 50, dy: 0,
+          dx: 45, dy: 35,
           unit: enemy.smallstar,
-          rotate: -0.003,
-          px: 50, py: 50
+          rotate: 0.015,
+          px: 10, py: 50
+        }, {
+          f: 0.1,
+          x:  70, y:  40,
+          dx: 55, dy: 35,
+          unit: enemy.smallstar,
+          rotate: -0.03,
+          px: 95, py: 50
         }]
       },
       {//1
         score: 3,
         enemies: [{
+          s: 0.1,
           f: 0.2,
-          x:  45, y:  0,
+          x:  55, y:  0,
+          dx: 45, dy: 0,
           unit: enemy.smallstar,
           rotate: -0.01,
           px: 50, py: 50
         }, {
+          s: 0.2,
           f: 0.1,
-          x:  55, y: 20,
+          x:  65, y: 20,
+          dx: 55, dy: 20,
           unit: enemy.smallstar,
           rotate: 0.02,
           px: 50, py: 50
         }, {
+          s: 0.2,
           f: 0.18,
-          x:  58, y: 30,
+          x:  68, y: 30,
+          dx: 58, dy: 30,
           unit: enemy.smallstar,
           rotate: -0.02,
           px: 50, py: 50
         }, {
+          s: 0.1,
           f: 0.15,
-          x:  57, y: 50,
+          x:  67, y: 50,
+          dx: 57, dy: 50,
           unit: enemy.smallstar,
           rotate: 0.01,
           px: 50, py: 50
         }, {
+          s: 0.2,
           f: 0.1,
-          x:  55, y: 65,
+          x:  65, y: 65,
+          dx: 55, dy: 65,
           unit: enemy.smallstar,
           rotate: -0.01,
           px: 50, py: 50
@@ -1297,7 +1320,6 @@ var Game = function () {
           x:  -20, y: -10,
           dx: 150, dy: 70,
           unit: enemy.shell,
-          rotate: -0.01,
           px: 50, py: 50
         }]
       },
@@ -1331,6 +1353,7 @@ var Game = function () {
     val: 5,
     time: 1.2,
     speed: 10,
+    color: 'white',
     colors: [
       'rgba(232, 98, 60, 0.8)',
       'rgba(232, 168, 60, 0.8)',
@@ -1361,14 +1384,14 @@ var Game = function () {
     },
     alert: function () {
       if (!audio.playing) {
+        game.alert = 1;
         audio.playing = 1;
         audio.playSong();
-        addClass(ui, 'breath');
       }
     },
     silence: function () {
+      game.alert = 0;
       audio.playing = 0;
-      delClass(ui, 'breath');
       clearTimeout(audio.t);
       audio.t = false;
       audio.play('song');
@@ -1393,18 +1416,55 @@ var Game = function () {
       score.total += score.val;
     },
     update: function (n) {
-      if (n) {
-        score.val += n;
-        if (score.val < 0) {
-          score.val = 0;
+      if(status === 'play'){
+        if (n) {
+          score.val += n;
+          if (score.val < 0) {
+            score.val = 0;
+          }
+          score.el.textContent = score.val;
         }
-        score.el.textContent = score.val;
+        breath.el.textContent = shoal.length + '/' + level.lvls[level.current].score;
+        if (shoal.length >= level.lvls[level.current].score) {
+          //if (shoal.length >= 1) {
+          game.win();
+        }
       }
-      breath.el.textContent = shoal.length + '/' + level.lvls[level.current].score;
-      if (shoal.length >= level.lvls[level.current].score) {
-      //if (shoal.length >= 1) {
-        game.win();
+    },
+    load: function () {
+      if (window.localStorage) {
+        var loaded = localStorage.getItem('kfish highscores');
+        if (loaded) {
+          highscores.data = JSON.parse(loaded);
+        }
       }
+    },
+    save: function () {
+      if (window.localStorage) {
+        localStorage.setItem('kfish highscores', JSON.stringify(highscores.data));
+      }
+    },
+    highscore: function (name, points, time) {
+      highscores.data.push({name: name, points: points, time: time});
+      highscores.data.sort(function (a, b) {
+        return b.points - a.points;
+      });
+      highscores.data = highscores.data.slice(0,7);
+      score.save();
+      score.build();
+    },
+    build: function () {
+      highscores.empty();
+      var t = [];
+      each(highscores.data, function (data) {
+        t.push('<p>'+data.name+' ... '+data.points+' / '+data.time.toFixed(2)+' sec</p>');
+      });
+      t.reverse();
+      highscores.text(t);
+      highscores.button('Back', function () {
+        menu.show();
+        highscores.up();
+      });
     }
   };
 
@@ -1422,6 +1482,8 @@ var Game = function () {
   var B  = 493.88;
 
   var audio = {
+    muteStr: 'Mute',
+    playStr: 'Play',
     ms: 150,
     song: [B/2,4, E/2,4, B/2,4, E/2,4, B,2, Bb,2, B,2, Db*2,2, B,8],
     playSong: function () {
@@ -1458,14 +1520,28 @@ var Game = function () {
     },
     mute: function () {
       if (audio.muted) {
-        audio.el.textContent = 'Mute';
+        audio.el.textContent = audio.muteStr;
         audio.muted = false;
       } else {
         audio.gainNode.gain.value = 0;
-        audio.el.textContent = 'Play';
+        audio.el.textContent = audio.playStr;
         audio.muted = true;
       }
-    }
+      audio.save();
+    },
+    load: function () {
+      if (window.localStorage) {
+        var loaded = localStorage.getItem('kfish mute');
+        if (loaded) {
+          audio.muted = JSON.parse(loaded);
+        }
+      }
+    },
+    save: function () {
+      if (window.localStorage) {
+        localStorage.setItem('kfish mute', JSON.stringify(audio.muted));
+      }
+    },
   };
 
   game.start();

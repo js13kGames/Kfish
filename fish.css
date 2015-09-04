@@ -39,7 +39,7 @@ html, body {
   -webkit-user-select: none;
   user-select: none;
   transition: all 0.4s, opacity 0.2s;
-  border-radius: 4px;
+  border-radius: 1vmin;
 }
 #ui.resize {
   opacity: 0;
@@ -48,7 +48,7 @@ html, body {
 #sea {
   overflow: hidden;
   display: block;
-  border-radius: 4px;
+  border-radius: 1vmin;
 }
 
 .box {
@@ -109,24 +109,26 @@ html, body {
 }
 .box.win h1 {
   margin: 2%;
-  font-size: 260%;
+  font-size: 300%;
   line-height: 120%;
 }
 .box.win h2 {
   margin: 6%;
-  font-size: 280%;
+  font-size: 240%;
   line-height: 80%;
 }
 .box.win p {
-  font-size: 130%;
-  line-height: 100%;
+  font-size: 120%;
+  line-height: 120%;
   margin: 2%;
 }
 .box.win input {
   font-size: 140%;
   width: 50%;
-  height: 12%;
-  border: 1px solid lightsteelblue;
+  height: 10%;
+  border-radius: 0.5vmin;
+  margin: 2%;
+  border: 0.25vmin solid lightsteelblue;
 }
 .box.over h2 {
   margin: 0;
@@ -135,8 +137,8 @@ html, body {
   color: #999;
 }
 .box.over p {
-  font-size: 180%;
-  line-height: 160%;
+  font-size: 160%;
+  line-height: 100%;
   margin: 2%;
   color: #999;
 }
@@ -147,17 +149,20 @@ html, body {
   background: #ccc;
 }
 .shoalscore {
+  pointer-events: none;
   position: absolute;
   bottom: 1.5%;
-  left: 4%;
+  left: 6%;
   width: 10%;
   font-weight: bold;
 }
 .score {
+  pointer-events: none;
   position: absolute;
   top: 1%;
   left: 2%;
   color: white;
+  font-weight: bold;
 }
 .mute {
   cursor: pointer;

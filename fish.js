@@ -86,7 +86,7 @@ var Game = function () {
     over: function () {
       score.el.textContent = '';
       breath.el.textContent = '';
-      over.score.textContent = 'Score: '+ score.val;
+      over.score.innerHTML = 'Score: '+ score.val+'<br>'+shoal.length+'/'+level.lvls[level.current].score;
       breath.silence();
       audio.play('game', B, 100);
       status = 'over';
@@ -101,8 +101,8 @@ var Game = function () {
       breath.silence();
       audio.play('game', E, 100);
       win.empty();
-      //if (level.current < level.lvls.length - 1) {
-      if (level.current < 1) {
+      if (level.current < level.lvls.length - 1) {
+      //if (level.current < 1) {
         win.text([
           '<h1>Level '+ (level.current + 1)+'</h1>',
           '<h2>You did it!</h2>',
@@ -126,7 +126,7 @@ var Game = function () {
     },
     end: function () {
       win.text([
-        '<h1>You Win!</h1>',
+        '<h2>You Win!</h2>',
         '<p>Final Score: '+score.total+'</p>',
         '<p>Total Time: '+score.totaltime.toFixed(2)+' sec</p>',
         '<p>Enter your name:</p>'
@@ -184,15 +184,16 @@ var Game = function () {
     updatehighscores: function (name, points, time) {
       highscores.data.push({name: name, points: points, time: time});
       highscores.data.sort(function (a, b) {
-        return a.points - b.points;
+        return b.points - a.points;
       });
       highscores.data = highscores.data.slice(0,7);
       game.save();
       highscores.empty();
       var t = [];
       each(highscores.data, function (data) {
-        t.push('<p>'+data.name+' ... '+data.points+' / '+data.time.toFixed(2)+'s</p>');
+        t.push('<p>'+data.name+' ... '+data.points+' / '+data.time.toFixed(2)+' sec</p>');
       });
+      t.reverse();
       highscores.text(t);
       highscores.button('Back', function () {
         menu.show();
@@ -416,7 +417,7 @@ var Game = function () {
     b.textContent = txt;
     addClass(b, 'button');
     b.addEventListener('click', function () {
-      audio.play('game', A, 120);
+      audio.play('game', D, 120);
       cb();
     });
     this.el.appendChild(b);
@@ -487,6 +488,7 @@ var Game = function () {
       this.py = y + ran(2, 4, true);
     }
     this.sx = 0; this.sy = 0;
+    this.pdx = false; this.pdy = false;
   };
   Fish.prototype.addToShoal = function () {
     audio.play('shoal', F, 150);
@@ -512,7 +514,6 @@ var Game = function () {
     powers.push(this);
   };
   Power.prototype.powerup = function () {
-    audio.play('power', D, 150);
     breath.val += 2;
     if (breath.val > 5) {
       breath.val = 5;
@@ -521,12 +522,15 @@ var Game = function () {
       breath.silence();
     }
     breath.speed *= 0.7;
-    delay(5, function () {
+    thefish.s = breath.val/breath.speed;
+    delay(6, function () {
       breath.speed /= 0.7;
+      thefish.s = breath.val/breath.speed;
     });
     remove(powers, this);
     remove(units, this);
     score.update(1);
+    audio.play('power', A, 180);
   };
 
   var Reverse = function (o) {
@@ -577,16 +581,16 @@ var Game = function () {
           n;
       lastClick = now;
       e.preventDefault();
-      if (doubleClick && breath.val >= 3) {
+      if (doubleClick && breath.val >= 2) {
         audio.play('click', G, 150);
-        breath.val -= 2;
+        breath.val -= 1;
         thefish.jump(x, y, true);
         for (f = 0; f < shoal.length; f++) {
           shoal[f].jump(x + ran(1, 8, true),
                         y + ran(1, 8, true));
         }
       }
-      if (!doubleClick && breath.val >= 2) {
+      if (!doubleClick && breath.val >= 1) {
         breath.val -= 1;
       }
       if (!doubleClick && breath.val >= 3) {
@@ -828,9 +832,9 @@ var Game = function () {
   };
 
   var colors = {
-    thefish: ['transparent','white','#f96','#f30','#933','#333'],
-    fish: ['transparent','white','#f89','#f26','#935','#333'],
-    shoal: ['transparent','white','#fa6','#f61','#f53','#333'],
+    thefish: ['transparent','white','#9af','#28c','#268','#333'],
+    fish: ['transparent','white','#ac9','#2c7','#382','#333'],
+    shoal: ['transparent','white','#f9d','#a5e','#739','#333'],
     dead: ['transparent','white','#aaa','#888','#555','#333']
   };
 
@@ -1320,8 +1324,8 @@ var Game = function () {
   };
 
   var breath = {
-    x: 9,
-    y: 74,
+    x: 11,
+    y: height - 1,
     w: 20,
     max: 5,
     val: 5,
@@ -1397,8 +1401,8 @@ var Game = function () {
         score.el.textContent = score.val;
       }
       breath.el.textContent = shoal.length + '/' + level.lvls[level.current].score;
-      //if (shoal.length >= level.lvls[level.current].score) {
-      if (shoal.length >= 1) {
+      if (shoal.length >= level.lvls[level.current].score) {
+      //if (shoal.length >= 1) {
         game.win();
       }
     }

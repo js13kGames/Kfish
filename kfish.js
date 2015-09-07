@@ -450,6 +450,12 @@ var Game = function () {
     if(o.bonus) {
       this.bonus = o.bonus;
     }
+    if(o.collide) {
+      this.collide = o.collide;
+    }
+    if(o.jumping) {
+      this.jumping = o.jumping;
+    }
     if (!thefish) {
       fishes.push(this);
     }
@@ -472,6 +478,7 @@ var Game = function () {
     this.os = this.s;
     this.s = 10;
     thefish.jumping = true;
+    thefish.collide = false;
     build.splash(x, y, true);
     this.tf = tf;
     delay(d/this.s * 0.02, function () {
@@ -1152,6 +1159,7 @@ var Game = function () {
         w: 5,
         bonus: 10,
         collide: true,
+        jumping: false,
         img: sprites.thefish
       }, true);
       if (level.lvls[level.current].enemies) {

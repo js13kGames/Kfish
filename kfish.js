@@ -447,14 +447,16 @@ var Game = function () {
     Unit.call(this, o);
     this.type = 'fish';
     this.img = o.img;
-    if(o.bonus) {
-      this.bonus = o.bonus;
-    }
-    if(o.collide) {
-      this.collide = o.collide;
-    }
-    if(o.jumping) {
-      this.jumping = o.jumping;
+    if (thefish) {
+      if(o.bonus) {
+        this.bonus = o.bonus;
+      }
+      if(o.collide) {
+        this.collide = o.collide;
+      }
+      if(o.jumping) {
+        this.jumping = o.jumping;
+      }
     }
     if (!thefish) {
       fishes.push(this);
@@ -579,7 +581,6 @@ var Game = function () {
     if (breath.val < 0) {
       breath.val = 0;
     }
-
     breath.color = '#f97';
     delay(0.3, function () {
       breath.color = 'white';

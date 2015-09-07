@@ -61,6 +61,14 @@ var Game = function () {
         scrollTo(0,1);
       }, 420);
     },
+    flash: function () {
+      if (!game.bright) {
+        game.bright = 1;
+        delay(0.3, function () {
+          game.bright = 0;
+        });
+      }
+    },
     clear: function () {
       if (reversed) {
         each(bubbles, function (b) {
@@ -439,6 +447,9 @@ var Game = function () {
     Unit.call(this, o);
     this.type = 'fish';
     this.img = o.img;
+    if(o.bonus) {
+      this.bonus = o.bonus;
+    }
     if (!thefish) {
       fishes.push(this);
     }
@@ -456,17 +467,22 @@ var Game = function () {
     this.sy = Math.abs(this.s * Math.sin(a));
     this.flip = (x < this.x);
   };
-  Fish.prototype.jump = function (x, y, thefish) {
+  Fish.prototype.jump = function (x, y, tf) {
+    var d = Math.pow(Math.pow(this.x - x, 2)+Math.pow(this.y - y, 2),1/2);
+    this.os = this.s;
+    this.s = 10;
+    thefish.jumping = true;
     build.splash(x, y, true);
-    this.x = x; this.y = y;
-    if (thefish) {
-      this.px = x; this.py = y;
-    } else {
-      this.px = x + ran(2, 4, true);
-      this.py = y + ran(2, 4, true);
-    }
-    this.sx = 0; this.sy = 0;
-    this.pdx = false; this.pdy = false;
+    this.tf = tf;
+    delay(d/this.s * 0.02, function () {
+      thefish.changeSpeed();
+      thefish.jumping = false;
+      thefish.collide = true;
+      game.flash();
+      this.move(x, y);
+      this.s = this.os;
+    }.bind(this));
+    this.move(x, y);
   };
   Fish.prototype.addToShoal = function () {
     audio.play('shoal', F, 150);
@@ -477,12 +493,10 @@ var Game = function () {
               thefish.y + ran(0, 4, true));
     this.rotate = ran(0.01, 0.04, true);
     score.update(2);
-    if (!game.bright) {
-      game.bright = 1;
-      delay(0.3, function () {
-        game.bright = 0;
-      });
-    }
+    game.flash();
+  };
+  Fish.prototype.changeSpeed = function () {
+    thefish.s = breath.val/thefish.bonus;
   };
 
   var Power = function (o) {
@@ -504,13 +518,13 @@ var Game = function () {
     if (breath.val > 2) {
       breath.silence();
     }
-    breath.speed *= 0.7;
-    thefish.s = breath.val/breath.speed;
+    thefish.bonus *= 0.7;
+    thefish.changeSpeed();
     game.bright = 1;
     delay(6, function () {
       game.bright = 0;
-      breath.speed /= 0.7;
-      thefish.s = breath.val/breath.speed;
+      thefish.bonus /= 0.7;
+      thefish.changeSpeed();
     });
     remove(powers, this);
     remove(units, this);
@@ -582,16 +596,19 @@ var Game = function () {
       lastClick = now;
       e.preventDefault();
       if (doubleClick && breath.val >= 2) {
+        //game.flash();
         audio.play('click', G, 150);
         breath.val -= 1;
+        thefish.collide = false;
         thefish.jump(x, y, true);
         for (f = 0; f < shoal.length; f++) {
-          shoal[f].jump(x + ran(1, 8, true),
+          shoal[f].move(x + ran(1, 8, true),
                         y + ran(1, 8, true));
         }
       }
       if (!doubleClick && breath.val >= 2) {
         breath.val -= 1;
+        thefish.changeSpeed();
       }
       if (!doubleClick && breath.val >= 3) {
         audio.play('click', C, 150);
@@ -663,10 +680,18 @@ var Game = function () {
   var spawn = {
     fish: function () {
       if (status === 'play' && fishes.length < 5) {
+        var offset = 8;
+        var nx = ran(offset,width-offset),
+            ny = ran(offset,height-offset);
+        if (Math.abs(nx-thefish.x)<5*offset &&
+            Math.abs(nx-thefish.x)<5*offset) {
+          nx = ran(offset,width-offset);
+          ny = ran(offset,height-offset);
+        }
         var f = new Fish({
           x: ran(5,width-5),
           y: ran(5,height-5),
-          s: ran(0.2, 0.4),
+          s: ran(0.2, 0.3),
           w: 2.8,
           h: ran(1.6, 2.8),
           img: sprites.fish
@@ -808,14 +833,16 @@ var Game = function () {
 
   var collision = {
     check: function () {
-      each(enemies, function colisionEnemies (unit) {
-        if (collision.circ(thefish, unit)) { game.over(); }
-      });
+      if (thefish.collide) {
+        each(enemies, function colisionEnemies (unit) {
+          if (collision.circ(thefish, unit)) { game.over(); }
+        });
+        each(reverses, function colisionReverses (unit) {
+          if (collision.rect(thefish, unit)) { unit.reverse(); }
+        });
+      }
       each(powers, function colisionPowers (unit) {
         if (collision.rect(thefish, unit)) { unit.power(); }
-      });
-      each(reverses, function colisionReverses (unit) {
-        if (collision.rect(thefish, unit)) { unit.reverse(); }
       });
       each(fishes, function colisionFishes (unit) {
         if (collision.rect(thefish, unit)) { unit.addToShoal(); }
@@ -1119,10 +1146,12 @@ var Game = function () {
     build: function () {
       game.clear();
       thefish = new Fish({
-        s: 0.5,
+        s: 0.5, //breath 5 / bonus 10
         x: width/2,
         y: height/2,
         w: 5,
+        bonus: 10,
+        collide: true,
         img: sprites.thefish
       }, true);
       if (level.lvls[level.current].enemies) {
@@ -1352,7 +1381,6 @@ var Game = function () {
     max: 5,
     val: 5,
     time: 1.2,
-    speed: 10,
     color: 'white',
     colors: [
       'rgba(232, 98, 60, 0.8)',
@@ -1368,10 +1396,12 @@ var Game = function () {
           if (breath.val > 2) {
             breath.silence();
           }
-          thefish.s = breath.val/breath.speed;
           if (thefish.pdx && thefish.pdy) {
             thefish.move(thefish.pdx, thefish.pdy);
           }
+        }
+        if (!thefish.jumping) {
+          thefish.changeSpeed();
         }
         delay(breath.time, breath.recover);
       }
@@ -1379,7 +1409,6 @@ var Game = function () {
     reset: function () {
       breath.val = 5;
       breath.time = 1.2;
-      breath.speed = 10;
       breath.val = breath.max;
     },
     alert: function () {
